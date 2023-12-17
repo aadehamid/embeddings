@@ -32,6 +32,12 @@ from google.api_core import retry as gretry
 # genai.configure(api_key=API_KEY)
 # %%
 # Sentence embedding with bert
+# define model
+model_name = "bert-base-uncased"
+
+# define the tokenizer and the model
+tokenizer = BertTokenizer.from_pretrained(model_name)
+bert_model = BertModel.from_pretrained(model_name)
 def bert_sentence_embed(input_sentence: str, model: BertModel = bert_model, word_ave: bool = True) -> Tensor:
     """A function to generate sentence embedding using Bert
 
