@@ -8,12 +8,18 @@ from rich import print
 import torch
 from typing import List, Tuple, Union, Callable
 import numpy as np
+import pandas as pd
 
 
 from transformers import BertModel, BertTokenizer
 from sentence_transformers import SentenceTransformer
 import openai
 import os
+from concurrent.futures import ThreadPoolExecutor
+from tqdm.auto import tqdm
+import functools
+import time
+import math
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -51,7 +57,6 @@ def bert_sentence_embed(input_sentence: str, model: BertModel = bert_model, word
     temp_list = []
     for text in input_sentence:
         input_ids = tokenizer.encode(text, add_special_tokens=True, return_tensors='pt')
-        # input_ids = tokenizer.encode(input_text_lst_news[0], return_tensors='pt')
         with torch.no_grad():
             outputs = model(input_ids)
 
@@ -72,22 +77,22 @@ def bert_sentence_embed(input_sentence: str, model: BertModel = bert_model, word
 # %%
 # A function to create bert and other embeddings
 def create_sentence_embedding(input_text: List[str],model:Union[Callable, object], 
-bert: bool = True, word_ave: bool = True) -> np.array:
+bert: bool = True, word_ave: bool = True) -> Tuple[np.array]:
     """A function to create sentence embedding from a list of text using 
         Bert or other open source model
     Args:
         input_text (List): List of sentence to create embedding for
 
     Returns:
-        np.array: np.array for all of the the sentence embedding
+        Tuple[np.array]: Tuple of np.array: High dimensional and low dimensional vectors fo all of the the sentence embedding
     """
     embed_list = []
     # model_name = 'bert-base-uncased'
     if bert:
-        sent_numpy_array = bert_sentence_embed(input_text_lst_news, model, word_ave)
+        sent_numpy_array = bert_sentence_embed(input_text, model, word_ave)
         
     else:
-        for text in input_text_lst_news:
+        for text in input_text:
             sen_emb = model.encode(text)
             embed_list.append(sen_emb)
         concatenated_sent_tensor = np.concatenate(embed_list)
@@ -181,3 +186,65 @@ def gembed_fn(model, input_text: List[str]) -> np.array:
     PCA_model.fit(embed_array)
     sent_low_dim_array = PCA_model.transform(embed_array)
     return embed_array, sent_low_dim_array
+
+# %%
+#------------------------------------------------
+# get embedding in batches
+#------------------------------------------------
+
+# create a function to generate batches of data
+def generate_batches(sentences: pd.Series, batch_size: int = 5) -> pd.Series:
+    for i in range(0, len(sentences), batch_size):
+        yield sentences[i: i + batch_size]
+
+
+def encode_text_to_embedding_batched(embd_func: Callable, 
+        sentences: List[str], 
+        model: object, 
+        bert: bool = False, 
+        api_calls_per_second: float = 0.33, 
+        batch_size: int = 5) -> np.array:
+    """A function to generate embedding in batches and respect rate limiting
+
+    Args:
+        embd_func (Callable): The function to make the APi call to do the embedding
+        sentences (List[str]): List of sentences of interest
+        model (object): The model that will be used to get the embedding
+        bert (bool, optional): Determines if we use Bert model or not. Defaults to False.
+        api_calls_per_second (float, optional): Number to use to calculate time to wait between API calls. Defaults to 0.33.
+        batch_size (int, optional): Batch size. Defaults to 5.
+
+    Returns:
+        np.array: Numpy array of embeddings
+    """
+    # Generates batches and calls embedding API
+    
+    embeddings_list = []
+
+    # Prepare the batches using a generator
+    batches = generate_batches(sentences, batch_size)
+
+    seconds_per_job = 1 / api_calls_per_second
+
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for batch in tqdm(
+            batches, total = math.ceil(len(sentences) / batch_size), position=0
+        ):
+            # Create a partial function with the additional arguments
+            func = functools.partial(embd_func, batch, model, bert)
+            futures.append(executor.submit(func))
+            time.sleep(seconds_per_job)
+
+        for future in futures:
+            embeddings_list.extend(future.result()[0])
+
+    is_successful = [
+        embedding is not None for sentence, embedding in zip(sentences, embeddings_list)
+    ]
+    # embeddings_list_successful = np.squeeze(
+    #     np.stack([embedding for embedding in embeddings_list if embedding is not None])
+    # )
+    embeddings_array_successful = np.vstack(embeddings_list)
+    
+    return embeddings_array_successful
