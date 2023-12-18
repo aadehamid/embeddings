@@ -100,13 +100,17 @@ bert: bool = True, word_ave: bool = True) -> Tuple[np.array]:
         # Reshape the numpy array into a 1 by 768 array
         sent_numpy_array = concatenated_sent_tensor.reshape(len(embed_list), len(embed_list[0]))
 
-    # Perform PCA for 2D visualization
-    # convert the 768-dimensional array to 2-dimentional array for plotting purpose
-    PCA_model = PCA(n_components=2)
-    PCA_model.fit(sent_numpy_array)
-    sent_low_dim_array = PCA_model.transform(sent_numpy_array)
+    if len(sent_numpy_array) == 1:
+        print("PCA of an array of one sample does not make sense.\nSo returning the full array.")
+        return sent_numpy_array, None
+    else:
+        # Perform PCA for 2D visualization
+        # convert the 768-dimensional array to 2-dimentional array for plotting purpose
+        PCA_model = PCA(n_components=2)
+        PCA_model.fit(sent_numpy_array)
+        sent_low_dim_array = PCA_model.transform(sent_numpy_array)
 
-    return sent_numpy_array, sent_low_dim_array
+        return sent_numpy_array, sent_low_dim_array
 
 # %%
 # A fucntion to compute cosine similarity
