@@ -53,3 +53,31 @@ def plot_2D(x_values, y_values, labels):
         sel.annotation.set_fontsize(12) 
 
     plt.show()
+
+
+def clusters_2D(x_values, y_values, labels, kmeans_labels):
+    fig, ax = plt.subplots()
+    scatter = ax.scatter(x_values, 
+                         y_values, 
+                         c = kmeans_labels, 
+                         cmap='Set1', 
+                         alpha=0.5, 
+                         edgecolors='k', 
+                         s = 40)  # Change the denominator as per n_clusters
+
+    # Create a mplcursors object to manage the data point interaction
+    cursor = mplcursors.cursor(scatter, hover=True)
+
+    #axes
+    ax.set_title('Embedding clusters visualization in 2D')  # Add a title
+    ax.set_xlabel('X_1')  # Add x-axis label
+    ax.set_ylabel('X_2')  # Add y-axis label
+
+    # Define how each annotation should look
+    @cursor.connect("add")
+    def on_add(sel):
+        sel.annotation.set_text(labels.category[sel.target.index])
+        sel.annotation.get_bbox_patch().set(facecolor='white', alpha=0.95) # Set annotation's background color
+        sel.annotation.set_fontsize(14) 
+
+    plt.show()
