@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import mplcursors
 import numpy as np
+# import scann
 
 def plot_heatmap(data, x_labels=None, y_labels=None, title=None):
     fig, ax = plt.subplots(figsize=(50, 3))
@@ -81,3 +82,28 @@ def clusters_2D(x_values, y_values, labels, kmeans_labels):
         sel.annotation.set_fontsize(14) 
 
     plt.show()
+
+# -----------------------------------------------------------------
+# configure ScaNN as a tree - asymmetric hash hybrid with reordering
+# anisotropic quantization as described in the paper; see README
+# ------------------------------------------------------------------
+# def create_index(embedded_dataset, 
+#                  num_leaves,
+#                  num_leaves_to_search,
+#                  training_sample_size):
+    
+#     # normalize data to use cosine sim as explained in the paper
+#     normalized_dataset = embedded_dataset / np.linalg.norm(embedded_dataset, axis=1)[:, np.newaxis]
+    
+#     searcher = (
+#         scann.scann_ops_pybind.builder(normalized_dataset, 10, "dot_product")
+#         .tree(
+#             num_leaves = num_leaves,
+#             num_leaves_to_search = num_leaves_to_search,
+#             training_sample_size = training_sample_size,
+#         )
+#         .score_ah(2, anisotropic_quantization_threshold = 0.2)
+#         .reorder(100)
+#         .build()
+#     )
+#     return searcher
