@@ -2,6 +2,14 @@ import matplotlib.pyplot as plt
 import mplcursors
 import numpy as np
 # import scann
+import umap
+import altair as alt
+
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+import warnings
+
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 
 def plot_heatmap(data, x_labels=None, y_labels=None, title=None):
     fig, ax = plt.subplots(figsize=(50, 3))
@@ -288,3 +296,104 @@ def search_HNSW(GraphArray,G_query):
     EntryGraphArray.reverse()
 
     return SearchPathGraphArray, EntryGraphArray
+
+
+#
+def umap_plot(text, emb):
+
+    cols = list(text.columns)
+    # UMAP reduces the dimensions from 1024 to 2 dimensions that we can plot
+    reducer = umap.UMAP(n_neighbors=2)
+    umap_embeds = reducer.fit_transform(emb)
+    # Prepare the data to plot and interactive visualization
+    # using Altair
+    #df_explore = pd.DataFrame(data={'text': qa['text']})
+    #print(df_explore)
+
+    #df_explore = pd.DataFrame(data={'text': qa_df[0]})
+    df_explore = text.copy()
+    df_explore['x'] = umap_embeds[:,0]
+    df_explore['y'] = umap_embeds[:,1]
+
+    # Plot
+    chart = alt.Chart(df_explore).mark_circle(size=60).encode(
+        x=#'x',
+        alt.X('x',
+            scale=alt.Scale(zero=False)
+        ),
+        y=
+        alt.Y('y',
+            scale=alt.Scale(zero=False)
+        ),
+        tooltip=cols
+        #tooltip=['text']
+    ).properties(
+        width=700,
+        height=400
+    )
+    return chart
+
+def umap_plot_big(text, emb):
+
+    cols = list(text.columns)
+    # UMAP reduces the dimensions from 1024 to 2 dimensions that we can plot
+    reducer = umap.UMAP(n_neighbors=100)
+    umap_embeds = reducer.fit_transform(emb)
+    # Prepare the data to plot and interactive visualization
+    # using Altair
+    #df_explore = pd.DataFrame(data={'text': qa['text']})
+    #print(df_explore)
+
+    #df_explore = pd.DataFrame(data={'text': qa_df[0]})
+    df_explore = text.copy()
+    df_explore['x'] = umap_embeds[:,0]
+    df_explore['y'] = umap_embeds[:,1]
+
+    # Plot
+    chart = alt.Chart(df_explore).mark_circle(size=60).encode(
+        x=#'x',
+        alt.X('x',
+            scale=alt.Scale(zero=False)
+        ),
+        y=
+        alt.Y('y',
+            scale=alt.Scale(zero=False)
+        ),
+        tooltip=cols
+        #tooltip=['text']
+    ).properties(
+        width=700,
+        height=400
+    )
+    return chart
+
+def umap_plot_old(sentences, emb):
+    # UMAP reduces the dimensions from 1024 to 2 dimensions that we can plot
+    reducer = umap.UMAP(n_neighbors=2)
+    umap_embeds = reducer.fit_transform(emb)
+    # Prepare the data to plot and interactive visualization
+    # using Altair
+    #df_explore = pd.DataFrame(data={'text': qa['text']})
+    #print(df_explore)
+
+    #df_explore = pd.DataFrame(data={'text': qa_df[0]})
+    df_explore = sentences
+    df_explore['x'] = umap_embeds[:,0]
+    df_explore['y'] = umap_embeds[:,1]
+
+    # Plot
+    chart = alt.Chart(df_explore).mark_circle(size=60).encode(
+        x=#'x',
+        alt.X('x',
+            scale=alt.Scale(zero=False)
+        ),
+        y=
+        alt.Y('y',
+            scale=alt.Scale(zero=False)
+        ),
+        tooltip=['text']
+    ).properties(
+        width=700,
+        height=400
+    )
+    return chart
