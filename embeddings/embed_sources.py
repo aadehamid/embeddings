@@ -30,6 +30,8 @@ from tenacity import retry, stop_after_attempt, wait_random_exponential
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
 from google.api_core import retry as gretry
+from mistralai.client import MistralClient
+
 
 
 # %%
@@ -76,21 +78,35 @@ def bert_sentence_embed(input_sentence: str, model: BertModel = bert_model, word
 
 # %%
 # A function to create bert and other embeddings
-def create_sentence_embedding(input_text: List[str],model:Union[Callable, object], 
-bert: bool = True, word_ave: bool = True) -> Tuple[np.array]:
-    """A function to create sentence embedding from a list of text using 
-        Bert or other open source model
+def create_sentence_embedding(input_text: List[str],model:Union[Callable, object, str],
+bert: Union[bool, None] = None, word_ave: Union[bool, None] = None, mistral: Union[bool, None] = None) -> Tuple[np.array]:
+    """A function to create sentence embeddings from a list of text using
+    Bert or other open source model.
+
     Args:
-        input_text (List): List of sentence to create embedding for
+        input_text (List): List of sentences to create embeddings for.
+        model (Union[Callable, object, str]): The model to be used for creating embeddings.
+        bert (Union[bool, None], optional): If True, uses Bert for embedding. Defaults to None.
+        word_ave (Union[bool, None], optional): If True, uses word averaging. Defaults to None.
+        mistral (Union[bool, None], optional): If True, uses Mistral for embedding. Defaults to None.
 
     Returns:
-        Tuple[np.array]: Tuple of np.array: High dimensional and low dimensional vectors fo all of the the sentence embedding
+        Tuple[np.array, np.array]: High dimensional and low dimensional vectors for all the sentence embeddings.
     """
     embed_list = []
     # model_name = 'bert-base-uncased'
     if bert:
         sent_numpy_array = bert_sentence_embed(input_text, model, word_ave)
-        
+    elif mistral:
+        mistral_api_key = os.environ['MISTRAL_API_KEY']
+        client = MistralClient(api_key=mistral_api_key)
+        mistral_embeddings_response = client.embeddings(
+        model="mistral-embed",
+        input=input_text,)
+        for i in range(len(mistral_embeddings_response.data)):
+            embed_list.append(mistral_embeddings_response.data[i].embedding)
+        sent_numpy_array = np.concatenate(embed_list).reshape(len(input_text), -1)
+
     else:
         for text in input_text:
             sen_emb = model.encode(text)
@@ -119,7 +135,7 @@ def compare(embeddings: np.array, idx1: int, idx2: int) -> float:
 
     Args:
         embeddings (np.array): An array of embeddings
-        idx1 (int): Index of the first embedding 
+        idx1 (int): Index of the first embedding
         idx2 (int): index of the second embedding
 
     Returns:
@@ -181,7 +197,7 @@ def gembed_fn(model, input_text: List[str]) -> np.array:
     embed_list = []
     for text in input_text:
         # set the task type to semantic_similarity
-        embedding = genai.embed_content(model = model, content = text, 
+        embedding = genai.embed_content(model = model, content = text,
         task_type = "semantic_similarity")["embedding"]
         embed_list.append(embedding)
     embed_array = np.array(embed_list)
@@ -202,11 +218,11 @@ def generate_batches(sentences: pd.Series, batch_size: int = 5) -> pd.Series:
         yield sentences[i: i + batch_size]
 
 
-def encode_text_to_embedding_batched(embd_func: Callable, 
-        sentences: List[str], 
-        model: object, 
-        bert: bool = False, 
-        api_calls_per_second: float = 0.33, 
+def encode_text_to_embedding_batched(embd_func: Callable,
+        sentences: List[str],
+        model: object,
+        bert: bool = False,
+        api_calls_per_second: float = 0.33,
         batch_size: int = 5) -> np.array:
     """A function to generate embedding in batches and respect rate limiting
 
@@ -222,7 +238,7 @@ def encode_text_to_embedding_batched(embd_func: Callable,
         np.array: Numpy array of embeddings
     """
     # Generates batches and calls embedding API
-    
+
     embeddings_list = []
 
     # Prepare the batches using a generator
@@ -250,5 +266,5 @@ def encode_text_to_embedding_batched(embd_func: Callable,
     #     np.stack([embedding for embedding in embeddings_list if embedding is not None])
     # )
     embeddings_array_successful = np.vstack(embeddings_list)
-    
+
     return embeddings_array_successful
