@@ -1,0 +1,123 @@
+{
+    "classes": [
+        {
+            "class": "WorkOrder",
+            "description": "Listing of Work Orders for Excavator 2015",
+            "vectorizer": "text2vec-openai",
+            "properties": [
+                {
+                    "name": "BscStartDate",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Bcs start date for the work order"
+                },
+                {
+                    "name": "OriginalShorttext",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Description of the issue."
+                },
+                {
+                    "name": "PMType",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "PMType for the work order."
+                },
+                {
+                    "name": "MajorSystem",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Name of the system."
+                },
+                {
+                    "name": "Part",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Part of the system"
+                },
+                {
+                    "name": "Action",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Action taken to resolve the issue."
+                },
+                {
+                    "name": "FM",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Syptoms that the issue is related to."
+                },
+                {
+                    "name": "Location",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Location of the issue on the system"
+                },
+                {
+                    "name": "FuncLocation",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Functional location of the issue."
+                },
+                {
+                    "name": "Asset",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Asset that the work order is related to."
+                },
+                {
+                    "name": "Cost",
+                    "dataType": [
+                        "number"
+                    ],
+                    "description": "Cost of the work order."
+                },
+                {
+                    "name": "RunningTime",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Running time of the work order."
+                },
+                {
+                    "name": "Variant",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Variant of the work order."
+                },
+                {
+                    "name": "Comments",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Comments on the work order."
+                },
+                {
+                    "name": "SuspSugg",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Suggested suspension."
+                },
+                {
+                    "name": "Rule",
+                    "dataType": [
+                        "text"
+                    ],
+                    "description": "Rule for the work order."
+                }
+            ]
+        }
+    ]
+}
