@@ -5,7 +5,7 @@ import sqlite3
 
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor, SentenceTransformerRerank
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core import SQLDatabase
+from llama_index.core import SQLDatabase, Document
 from llama_index.core.indices.struct_store import SQLTableRetrieverQueryEngine
 from llama_index.core.objects import ObjectIndex
 from sqlalchemy import create_engine
@@ -53,7 +53,7 @@ from llama_index.core.evaluation import RelevancyEvaluator, GuidelineEvaluator
 # from llama_index.core import Response
 
 
-from typing import Union
+from typing import Union, List
 from llama_index.core import set_global_service_context
 from llama_index.llms.openai import OpenAI
 from llama_index.core.query_engine import NLSQLTableQueryEngine
@@ -83,39 +83,98 @@ from llama_index.core.settings import Settings
 # Load data to sqlite DB
 # ----------------------------------------------
 
-def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str) -> \
-        (sqlite3.Connection, create_engine, pd.DataFrame):
+# def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str) -> \
+#         (sqlite3.Connection, create_engine, pd.DataFrame):
+#     """
+#     Load data from a CSV file into a SQLite database.
+#
+#     Args:
+#     - filepath (str): The path to the CSV file.
+#     - dbpath (str): The path to the SQLite database.
+#     - tablename (str): The name of the table to create in the database.
+#
+#
+#     Returns:
+#     - conn (sqlite3.Connection): The connection to the SQLite database.
+#     - data (pd.DataFrame): The data from the CSV file as a DataFrame.
+#     - engine (create_engine): The SQLite engine.
+#     """
+#     # Read the data from the CSV file into a pandas DataFrame
+#     data = pd.read_csv(filepath)
+#
+#     # Drop the 'Unnamed: 16' column from the DataFrame
+#     data.drop("Unnamed: 16", axis=1, inplace=True)
+#
+#     # Create a connection to the SQLite database
+#     conn = sqlite3.connect(dbpath)
+#     engine = create_engine("sqlite:///" + dbpath)
+#
+#     # Write the DataFrame to a table in the SQLite database
+#     data.to_sql(tablename, conn, if_exists='replace', index=False)
+#
+#     # Return the connection to the SQLite database
+#     return conn, engine, data
+
+
+#%%
+#----------------------------------------------
+def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str,
+                        columns_to_embed: List[str], columns_to_metadata: List[str]) -> \
+        Tuple[sqlite3.Connection, any, pd.DataFrame, Document]:
     """
-    Load data from a CSV file into a SQLite database.
+    Load data from a CSV file into a SQLite database and prepare documents for embedding.
+
+    This function reads data from a CSV file, drops an unnecessary column, and writes the data to a specified
+    SQLite database table. It also prepares a document for embedding by processing specified columns.
 
     Args:
-    - filepath (str): The path to the CSV file.
-    - dbpath (str): The path to the SQLite database.
-    - tablename (str): The name of the table to create in the database.
-
+        filepath (str): The path to the CSV file.
+        dbpath (str): The path to the SQLite database.
+        tablename (str): The name of the table to create in the database.
+        columns_to_embed (List[str]): List of column names whose values will be embedded.
+        columns_to_metadata (List[str]): List of column names to be included as metadata.
 
     Returns:
-    - conn (sqlite3.Connection): The connection to the SQLite database.
-    - data (pd.DataFrame): The data from the CSV file as a DataFrame.
-    - engine (create_engine): The SQLite engine.
+        Tuple[sqlite3.Connection, any, pd.DataFrame, Document]:
+            - conn (sqlite3.Connection): The connection to the SQLite database.
+            - engine (any): The SQLAlchemy engine for the SQLite database.
+            - data (pd.DataFrame): The data from the CSV file as a DataFrame.
+            - document (Document): A single document prepared for embedding, containing text and metadata.
     """
     # Read the data from the CSV file into a pandas DataFrame
     data = pd.read_csv(filepath)
 
-    # Drop the 'Unnamed: 16' column from the DataFrame
-    data.drop("Unnamed: 16", axis=1, inplace=True)
+    # Drop the 'Unnamed: 16' column from the DataFrame, if present
+    data.drop(columns=["Unnamed: 16"], errors='ignore', inplace=True)
 
-    # Create a connection to the SQLite database
+    # Create a connection to the SQLite database and an engine
     conn = sqlite3.connect(dbpath)
     engine = create_engine("sqlite:///" + dbpath)
 
     # Write the DataFrame to a table in the SQLite database
     data.to_sql(tablename, conn, if_exists='replace', index=False)
 
-    # Return the connection to the SQLite database
-    return conn, engine, data
+    # Initialize an empty list to hold Document objects
+    docs = []
 
+    # Iterate over each row in the DataFrame to process columns for embedding and metadata
+    for _, row in data.iterrows():
+        # Extract metadata from specified columns
+        to_metadata = {col: row[col] for col in columns_to_metadata if col in row}
+        # Prepare text for embedding from specified columns
+        values_to_embed = {k: str(row[k]) for k in columns_to_embed if k in row}
+        to_embed = "\n".join(f"{k.strip()}: {v.strip()}" for k, v in values_to_embed.items())
+        # Create a new Document object with text and metadata
+        newDoc = Document(text=to_embed, metadata=to_metadata)
+        docs.append(newDoc)
 
+    # Combine text from all documents into a single Document object
+    document = Document(text="\n\n".join([doc.text for doc in docs]))
+
+    # Return the database connection, engine, DataFrame, and the combined document
+    return conn, engine, data, document
+#----------------------------------------------
+#%%
 # ----------------------------------------------
 # Create text to query engine
 
@@ -374,6 +433,35 @@ def build_sentence_window_index_vector_DB(
                                                      storage_context=storage_context)
 
     return sentence_index
+
+# %%
+# ----------------------------------------------
+# Load index from weaviate
+def load_index_from_weaviate(client: Any, index_name: str) -> VectorStoreIndex:
+    """
+    Load a vector store index from Weaviate.
+
+    This function initializes a Weaviate vector store with the given client and index name,
+    and then creates a VectorStoreIndex from this vector store.
+
+    Args:
+        client (Any): The Weaviate client used to interact with the Weaviate instance.
+        index_name (str): The name of the index to be loaded from Weaviate.
+
+    Returns:
+        VectorStoreIndex: The loaded vector store index.
+    """
+    # Initialize the Weaviate vector store with the provided client and index name
+    vector_store = WeaviateVectorStore(weaviate_client=client, index_name=index_name)
+
+    # Create a VectorStoreIndex from the initialized vector store
+    index = VectorStoreIndex.from_vector_store(vector_store)
+
+    # Return the created VectorStoreIndex
+    return index
+# ----------------------------------------------
+
+# %%
 
 # ----------------------------------------------
 def get_sentence_window_query_engine(
