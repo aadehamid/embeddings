@@ -1,4 +1,5 @@
 .DS_Store
+agent/llama_agent/
 # lighning AI
 .lightning_studio/
 
