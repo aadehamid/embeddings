@@ -1,0 +1,32 @@
+embed_params:
+    to_embed:
+        - "OriginalShorttext"
+        - "MajorSystem"
+        - "Part"
+        - "Action"
+        - "FM"
+        - "Location"
+        - "FuncLocation"
+    to_metadata:
+        - "Asset"
+        - "Cost"
+        - "RunningTime"
+        - "Variant"
+        - "Comments"
+        - "SuspSugg"
+        - "Rule"
+models:
+    model_name: "gpt-3.5-turbo"
+    embedding_model_name: "text-embedding-3-large"
+database:
+    table_name: "work_order_table"
+dataDirs:
+    datadir: &datadir "../data"
+    dbpath: "/Users/hamidadesokan/Dropbox/2_Skill_Development/DLML/genai_applications/embeddings/RAG/WO_notebooks/data/wo_data.db"
+    wo_data_path: "/Users/hamidadesokan/Dropbox/2_Skill_Development/DLML/genai_applications/embeddings/RAG/WO_notebooks/data/excavator_2015_cleaned_forpdl.csv"
+
+
+
+
+
+
