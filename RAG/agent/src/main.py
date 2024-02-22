@@ -9,19 +9,19 @@ import pandas as pd
 from llama_index.core.query_engine import PandasQueryEngine
 # from prompt import new_prompt, instruction_str, context
 
-from RAG.agent.src.prompt import context, instruction_str, new_prompt
-from RAG.agent.src.note_engine import note_engine
-from RAG.agent.src.load_index import canada_engine
-
+from prompt import (
+    context, instruction_str,
+    new_prompt)
+from note_engine import note_engine
+from load_index import canada_engine
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 
 
 # %%
-filepath = Path.joinpath(Path.cwd(), "RAG", "agent", 'agent_data', 'WorldPopulation2023.csv')
+filepath = Path.joinpath(Path.cwd().parent, 'agent_data', 'WorldPopulation2023.csv')
 population = pd.read_csv(filepath)
-population.head()
 # %%
 population_query_engine = PandasQueryEngine(
     df=population, verbose=True, instruction_str=instruction_str

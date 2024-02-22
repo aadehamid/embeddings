@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 
-def get_index(data, index_name, embed_model, chromapath):
+def get_index(data, index_name, embed_model, chromapath = None):
     index = None
     db = chromadb.PersistentClient(path=chromapath)
     chroma_collection = db.get_or_create_collection(index_name)
@@ -28,9 +28,10 @@ embedding_model_name = "text-embedding-3-large"
 embed_model = OpenAIEmbedding(model=embedding_model_name)
 
 
-canada_filepath = Path.joinpath(Path.cwd(), "RAG", "agent", 'agent_data', 'Canada.pdf')
-chromapath = str(
-    Path.joinpath(Path.cwd().parent, 'agent_data', 'agent_chroma_db'))
+canada_filepath = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', 'Canada.pdf'))
+
+chromapath = str(Path.joinpath(Path(os.path.join(os.path.dirname(os.getcwd()),
+                                                 'agent_data', 'agent_chroma_db'))))
 canada_pdf = PDFReader().load_data(file=canada_filepath)
 canada_index = get_index(canada_pdf, "canada", embed_model,
                          chromapath)
