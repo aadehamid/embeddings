@@ -24,6 +24,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/RAG/agent/agent_data/csv/WorldPopulation2023.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
       </map>
     </option>
   </component>
