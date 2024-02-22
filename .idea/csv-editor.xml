@@ -10,13 +10,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/RAG/WO_notebooks/data/WO/excavator_2015_cleaned_forpdl.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/RAG/WO_notebooks/data/excavator_2015_cleaned_forpdl.csv">
           <value>
             <Attribute>
