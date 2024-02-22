@@ -1,8 +1,9 @@
+llama_agent/bin/llamaindex-legacy-cli
 .DS_Store
 agent/llama_agent/
 .idea
  .idea/csv-editor.xml
-# lighning AI
+ # lighning AI
 .lightning_studio/
 
 # Byte-compiled / optimized / DLL files
