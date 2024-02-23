@@ -1,6 +1,7 @@
 llama_agent/bin/llamaindex-legacy-cli
 .DS_Store
 agent/llama_agent/
+RAG/agent/agent_data/Generative_AI_Client_Questions_and_Lighthouse_Contents.xlsx
 .idea
  .idea/csv-editor.xml
  # lighning AI
