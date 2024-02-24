@@ -18,18 +18,33 @@ from pathlib import Path
 from sqlalchemy import create_engine
 
 
-def get_index(data, index_name, embed_model, chromapath = None):
+def get_index(data, index_name, embed_model, chromapath=None, sent_window=False):
     index = None
     db = chromadb.PersistentClient(path=chromapath)
-    chroma_collection = db.get_or_create_collection(index_name)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
     if not os.path.exists(chromapath):
         print("building index", index_name)
+        chroma_collection = db.get_or_create_collection(index_name)
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_documents(data, storage_context=storage_context, embed_model=embed_model,
+        index = VectorStoreIndex.from_documents(data, storage_context=storage_context,
+                                                embed_model=embed_model,
                                                 show_progress=True)
-    else:
-        index = VectorStoreIndex.from_vector_store(vector_store,
+
+    for i in range(len(db.list_collections())):
+        if not (db.list_collections()[i].name == index_name):
+            print("building index", index_name)
+            chroma_collection = db.get_or_create_collection(index_name)
+            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            index = VectorStoreIndex.from_documents(data, storage_context=storage_context,
+                                                    embed_model=embed_model,
+                                                    show_progress=True)
+
+    if db.get_collection(index_name):
+            chroma_collection = db.get_collection(index_name)
+            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+            index = VectorStoreIndex.from_vector_store(vector_store,
                                                    embed_model=embed_model, )
 
     return index
@@ -37,7 +52,6 @@ def get_index(data, index_name, embed_model, chromapath = None):
 
 embedding_model_name = "text-embedding-3-large"
 embed_model = OpenAIEmbedding(model=embedding_model_name)
-
 
 canada_filepath = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', 'Canada.pdf'))
 
@@ -54,9 +68,8 @@ canada_engine = canada_index.as_query_engine()
 # population_docs = SimpleDirectoryReader(population_filepath).load_data()
 
 
-
 # %%
-#---------------------------
+# ---------------------------
 def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str,
                         columns_to_embed: List[str] = None, columns_to_metadata: List[str] = None) -> \
         Tuple[sqlite3.Connection, any, pd.DataFrame, Document]:
@@ -116,6 +129,7 @@ def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str,
     # Return the database connection, engine, DataFrame, and the combined document
     return conn, engine, data, document
 
+
 # %%
 # -----------------------------------------------------------------------------
 def text_to_query_engine(model_name: str, embedding_model_name: str, table_name: str, engine: str,
@@ -150,7 +164,6 @@ def text_to_query_engine(model_name: str, embedding_model_name: str, table_name:
     # Create a service context with the initialized models
     # service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
 
-
     # Set the global service context for further use in the application
     # set_global_service_context(service_context)
 
@@ -179,3 +192,30 @@ def text_to_query_engine(model_name: str, embedding_model_name: str, table_name:
     # Return the initialized query engine
     return query_engine, sql_database
 
+
+# %%
+# -----------------------------------------------------------------------------
+from llama_index.core.node_parser import SentenceWindowNodeParser
+
+
+def build_sentence_window_index_vector_DB(
+        document, client, index_name=None):
+    # create the sentence window node parser w/ default settings
+    node_parser = SentenceWindowNodeParser.from_defaults(
+        window_size=3,
+        window_metadata_key="window",
+        original_text_metadata_key="original_text",
+    )
+    # sentence_context = ServiceContext.from_defaults(
+    #     llm=llm,
+    #     embed_model=embed_model,
+    #     node_parser=node_parser,
+    # )
+
+    vector_store = WeaviateVectorStore(weaviate_client=client, index_name=index_name)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+    sentence_index = VectorStoreIndex.from_documents([document],
+                                                     storage_context=storage_context)
+
+    return sentence_index
