@@ -42,7 +42,11 @@ Settings.embed_model = embed_model
 table_name = "population"
 
 # %%
-dbpath = str(Path(os.path.join((os.getcwd()), 'RAG', 'agent',  'agent_data', 'WorldPopulation2023.db')))
+import os
+os.getcwd()
+# %%
+dbpath = "/Users/hamidadesokan/Dropbox/2_Skill_Development/DLML/genai_applications/" \
+                  "embeddings/RAG/agent/agent_data/WorldPopulation2023.db"
 print(dbpath)
 # Connect to sqlite db
 conn = sqlite3.connect(dbpath)
@@ -55,7 +59,8 @@ sql_query_engine = text_to_query_engine(model_name,
 
 # %%
 
-chromapath = str(Path(os.path.join((os.getcwd()), 'RAG', 'agent',  'agent_data', 'chroma_db')))
+chromapath = ("/Users/hamidadesokan/Dropbox/2_Skill_Development/DLML/genai_applications/" \
+              "embeddings/RAG/agent/agent_data/chroma_db")
 collection_name = 'canada'
 index = get_index(chromapath, collection_name, nodes = None)
 
