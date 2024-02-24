@@ -9,6 +9,11 @@ from llama_index.llms.openai import OpenAI
 from llama_index.readers.file import PDFReader
 from llama_index.core import StorageContext, VectorStoreIndex, load_index_from_storage, Document, SQLDatabase, \
     SimpleDirectoryReader
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+from llama_index.core.postprocessor import SentenceTransformerRerank
+from llama_index.core.settings import Settings
+from llama_index.core.node_parser import SentenceSplitter
+from llama_parse import LlamaParse
 import chromadb
 from llama_index.readers.file.tabular import CSVReader
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -16,51 +21,90 @@ import os
 from pathlib import Path
 
 from sqlalchemy import create_engine
+import asyncio
 
 
-def get_index(data, index_name, embed_model, chromapath=None, sent_window=False):
-    index = None
-    db = chromadb.PersistentClient(path=chromapath)
+# %%
+model_name = "gpt-3.5-turbo"
+embedding_model_name = "text-embedding-3-small"
+llm = OpenAI(temperature=0.1, model=model_name)
+embed_model = OpenAIEmbedding(model=embedding_model_name)
+Settings.llm = llm
+Settings.embed_model = embed_model
 
-    if not os.path.exists(chromapath):
-        print("building index", index_name)
-        chroma_collection = db.get_or_create_collection(index_name)
+# base node parser is a sentence splitter
+text_splitter = SentenceSplitter()
+Settings.text_splitter = text_splitter
+
+# %%
+# ---------------------------
+
+
+
+async def get_nodes(filepath):
+    node_parser = SentenceWindowNodeParser.from_defaults(
+        window_size=3,
+        window_metadata_key="window",
+        original_text_metadata_key="original_text", )
+
+    root, ext = os.path.splitext(filepath)
+    if ext == '.pdf':
+        parser = LlamaParse(result_type='markdown',
+                            api_key=os.getenv("LLAMA_PARSER_API_KEY"),
+                            verbose=True)
+        docs = await parser.aload_data(filepath)
+
+        # extract both the sentence window nodes and the base nodes
+        nodes = node_parser.get_nodes_from_documents(docs)
+        base_nodes = text_splitter.get_nodes_from_documents(docs)
+    return nodes, base_nodes
+
+
+def get_index(vector_db_path, collection_name, nodes=None):
+    db = chromadb.PersistentClient(path=vector_db_path)
+
+    # Check if the collection does not exist
+    if collection_name not in [col.name for col in db.list_collections()]:
+        print("building index", collection_name)
+        chroma_collection = db.get_or_create_collection(collection_name)
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        index = VectorStoreIndex.from_documents(data, storage_context=storage_context,
-                                                embed_model=embed_model,
-                                                show_progress=True)
-
-    for i in range(len(db.list_collections())):
-        if not (db.list_collections()[i].name == index_name):
-            print("building index", index_name)
-            chroma_collection = db.get_or_create_collection(index_name)
-            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
-            index = VectorStoreIndex.from_documents(data, storage_context=storage_context,
-                                                    embed_model=embed_model,
-                                                    show_progress=True)
-
-    if db.get_collection(index_name):
-            chroma_collection = db.get_collection(index_name)
-            vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-            index = VectorStoreIndex.from_vector_store(vector_store,
-                                                   embed_model=embed_model, )
+        index = VectorStoreIndex(nodes=nodes, storage_context=storage_context,
+                                 embed_model=embed_model, show_progress=True)
+    else:
+        # This block now correctly handles the case where the collection already exists
+        chroma_collection = db.get_collection(collection_name)
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+        index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
 
     return index
 
 
-embedding_model_name = "text-embedding-3-large"
-embed_model = OpenAIEmbedding(model=embedding_model_name)
+def get_sentence_window_query_engine(
+        sentence_index,
+        similarity_top_k=6,
+        rerank_top_n=2, ):
+    # define postprocessors
+    postproc = MetadataReplacementPostProcessor(target_metadata_key="window")
+    rerank = SentenceTransformerRerank(
+        top_n=rerank_top_n, model="BAAI/bge-reranker-base")
 
-canada_filepath = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', 'Canada.pdf'))
+    query_engine = sentence_index.as_query_engine(
+        similarity_top_k=similarity_top_k, node_postprocessors=[postproc, rerank])
+    return query_engine
+#---------------------------
 
-chromapath = str(Path.joinpath(Path(os.path.join(os.path.dirname(os.getcwd()),
-                                                 'agent_data', 'agent_chroma_db'))))
-canada_pdf = PDFReader().load_data(file=canada_filepath)
-canada_index = get_index(canada_pdf, "canada", embed_model,
-                         chromapath)
-canada_engine = canada_index.as_query_engine()
+# embedding_model_name = "text-embedding-3-large"
+# embed_model = OpenAIEmbedding(model=embedding_model_name)
+#
+# canada_filepath = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', 'Canada.pdf'))
+#
+# chromapath = str(Path.joinpath(Path(os.path.join(os.path.dirname(os.getcwd()),
+#                                                  'agent_data', 'agent_chroma_db'))))
+# canada_pdf = PDFReader().load_data(file=canada_filepath)
+# canada_index = get_index(canada_pdf, "canada", embed_model,
+#                          chromapath)
+# canada_engine = canada_index.as_query_engine()
 
 
 # population_filepath = str(Path(os.path.join(os.path.dirname(os.getcwd()),
@@ -199,7 +243,10 @@ from llama_index.core.node_parser import SentenceWindowNodeParser
 
 
 def build_sentence_window_index_vector_DB(
-        document, client, index_name=None):
+        document, client=None, chromapath=None, collection_name=None):
+    db = chromadb.PersistentClient(path=chromapath)
+    chroma_collection = db.get_or_create_collection(collection_name)
+
     # create the sentence window node parser w/ default settings
     node_parser = SentenceWindowNodeParser.from_defaults(
         window_size=3,
@@ -212,10 +259,15 @@ def build_sentence_window_index_vector_DB(
     #     node_parser=node_parser,
     # )
 
-    vector_store = WeaviateVectorStore(weaviate_client=client, index_name=index_name)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    index = VectorStoreIndex.from_documents(document, storage_context=storage_context,
+                                            embed_model=embed_model,
+                                            show_progress=True)
+    # vector_store = WeaviateVectorStore(weaviate_client=client, index_name=index_name)
+    # storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    #
+    # index = VectorStoreIndex.from_documents([document],
+    #                                                  storage_context=storage_context)
 
-    sentence_index = VectorStoreIndex.from_documents([document],
-                                                     storage_context=storage_context)
-
-    return sentence_index
+    return index
