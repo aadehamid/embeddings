@@ -5,7 +5,7 @@ from pathlib import Path
 from llama_index.core.tools import FunctionTool
 
 # note_file = os.path.join("..", "agent_data", "notes.txt")
-note_file = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', "notes.txt"))
+note_file = Path(os.path.join((os.getcwd()), 'RAG', 'agent',  'agent_data', 'notes.txt'))
 # note_file = Path.joinpath(Path.cwd(), "RAG", "agent", 'agent_data', "notes.txt")
 
 
