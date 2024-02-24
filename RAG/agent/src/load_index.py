@@ -93,25 +93,6 @@ def get_sentence_window_query_engine(
         similarity_top_k=similarity_top_k, node_postprocessors=[postproc, rerank])
     return query_engine
 #---------------------------
-
-# embedding_model_name = "text-embedding-3-large"
-# embed_model = OpenAIEmbedding(model=embedding_model_name)
-#
-# canada_filepath = Path(os.path.join(os.path.dirname(os.getcwd()), 'agent_data', 'Canada.pdf'))
-#
-# chromapath = str(Path.joinpath(Path(os.path.join(os.path.dirname(os.getcwd()),
-#                                                  'agent_data', 'agent_chroma_db'))))
-# canada_pdf = PDFReader().load_data(file=canada_filepath)
-# canada_index = get_index(canada_pdf, "canada", embed_model,
-#                          chromapath)
-# canada_engine = canada_index.as_query_engine()
-
-
-# population_filepath = str(Path(os.path.join(os.path.dirname(os.getcwd()),
-#                                     'agent_data', 'csv')))
-# population_docs = SimpleDirectoryReader(population_filepath).load_data()
-
-
 # %%
 # ---------------------------
 def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str,
