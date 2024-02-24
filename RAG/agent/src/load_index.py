@@ -157,7 +157,7 @@ def load_data_to_sql_db(filepath: str, dbpath: str, tablename: str,
 
 # %%
 # -----------------------------------------------------------------------------
-def text_to_query_engine(model_name: str, embedding_model_name: str, table_name: str, engine: str,
+def text_to_query_engine(model_name: str, embedding_model_name: str, all_table_names: List[str], engine: str,
                          temperature: float = 0.1, not_know_table: bool = True) -> Union[
     NLSQLTableQueryEngine, SQLTableRetrieverQueryEngine]:
     """
@@ -193,13 +193,16 @@ def text_to_query_engine(model_name: str, embedding_model_name: str, table_name:
     # set_global_service_context(service_context)
 
     # Initialize the SQL database with the specified engine and include the table to be queried
-    sql_database = SQLDatabase(engine, include_tables=[table_name])
+    sql_database = SQLDatabase(engine, include_tables=all_table_names)
 
     if not_know_table:
         # If the table to query is not known ahead of time, use SQLTableRetrieverQueryEngine
         # This involves creating a mapping and schema objects for the SQL tables
         table_node_mapping = SQLTableNodeMapping(sql_database)
-        table_schema_objs = [SQLTableSchema(table_name=table_name)]  # Create a schema object for the table
+        table_schema_objs = []
+        for table_name in all_table_names:
+            table_schema_objs.append(SQLTableSchema(table_name=table_name))
+
         obj_index = ObjectIndex.from_objects(
             table_schema_objs,
             table_node_mapping,
@@ -212,10 +215,11 @@ def text_to_query_engine(model_name: str, embedding_model_name: str, table_name:
     else:
         # If the table to query is known ahead of time, use NLSQLTableQueryEngine
         query_engine = NLSQLTableQueryEngine(
-            sql_database=sql_database, tables=[table_name])
+            sql_database=sql_database, tables=all_table_names)
 
     # Return the initialized query engine
-    return query_engine, sql_database
+    # return query_engine, sql_database
+    return query_engine
 
 
 # %%
